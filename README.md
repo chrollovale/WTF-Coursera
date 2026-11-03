@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="icon.png" width="100" height="100" alt="WTF Coursera icon" />
+  <img src="icon.svg" width="100" height="100" alt="WTF Coursera book and check logo" />
   <h1>WTF Coursera</h1>
-  <p><b>A compact Coursera course companion for progress actions and AI-assisted assessments.</b></p>
+  <p><b>A focused course companion for Coursera progress and supported assessments.</b></p>
 
-  [![Release](https://img.shields.io/github/v/release/chrollovale/WTF-Coursera?style=flat-square&color=38bdf8)](https://github.com/chrollovale/WTF-Coursera/releases/latest)
+  [![Release](https://img.shields.io/badge/release-v1.1.5-38bdf8?style=flat-square)](https://github.com/chrollovale/WTF-Coursera/releases/latest)
   [![Manifest V3](https://img.shields.io/badge/Manifest-V3-34A853?style=flat-square)](https://developer.chrome.com/docs/extensions/mv3/intro/)
   [![Browser](https://img.shields.io/badge/Chromium-Chrome%20%7C%20Edge%20%7C%20Brave-4285F4?style=flat-square)](https://github.com/chrollovale/WTF-Coursera)
   [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](./LICENSE)
@@ -14,11 +14,9 @@
 
 ---
 
-WTF Coursera is a local browser extension for Coursera. Its dark, compact panel provides lesson progress actions and an optional AI workspace. The extension uses your active Coursera session; AI features send assessment prompts and related course context to the provider you select.
+WTF Coursera is a local browser extension with a compact dark interface, course progress controls, and an optional AI workspace. It works with your active Coursera session. If you use AI features, assessment prompts and relevant course context are sent to the provider you choose.
 
-<p align="center">
-  <img src="./Preview1.png" alt="WTF Coursera extension panel" width="80%" />
-</p>
+**Designed for:** Chrome, Edge, and Brave · **Manifest:** V3 · **Current release:** [v1.1.5](https://github.com/chrollovale/WTF-Coursera/releases/tag/v1.1.5)
 
 ## Features
 
@@ -63,13 +61,6 @@ WTF Coursera is a local browser extension for Coursera. Its dark, compact panel 
 2. Open the extension panel and choose a progress action, or expand the AI workspace.
 3. For AI features, select a provider and enter its API key.
 4. Review the task and settings before starting. Use the single-lesson or current-assessment action first if you want to see how it behaves.
-
-<p align="center">
-  <img src="./Preview2.png" alt="Assessment solver preview" width="80%" />
-</p>
-<p align="center">
-  <img src="./Preview3.png" alt="AI provider settings preview" width="80%" />
-</p>
 
 ## Troubleshooting
 
