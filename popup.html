@@ -1,470 +1,248 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WTF Coursera</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
-
-    *, *::before, *::after { box-sizing: border-box; }
-
     :root {
-      --bg: #ffffff;
-      --paper: #fdfcf8;
-      --ink: #16140f;
-      --ink-soft: #726d61;
-
-      --border: #16140f;
-      --shadow: 4px 4px 0 var(--border);
-      --shadow-sm: 2px 2px 0 var(--border);
-
-      --accent: #ff5a36;
-      --accent-2: #ffcf4d;
-
-      --success: #2f6f4e;
-      --success-bg: #eaf3ec;
-
-      --error: #b3392a;
-      --error-bg: #fbebe7;
+      color-scheme: dark;
+      --bg: #080910;
+      --surface: #11121c;
+      --surface-raised: #171824;
+      --surface-hover: #202132;
+      --line: rgba(227, 226, 255, .12);
+      --line-strong: rgba(227, 226, 255, .2);
+      --text: #f2f0fb;
+      --muted: #a19fb4;
+      --quiet: #77768b;
+      --violet: #a994ff;
+      --violet-soft: #8172df;
+      --success: #91d8af;
+      --success-bg: rgba(56, 132, 88, .16);
+      --error: #ffaaa0;
+      --error-bg: rgba(167, 57, 52, .18);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Avenir Next", "Helvetica Neue", sans-serif;
     }
-
+    * { box-sizing: border-box; }
     body {
-      width: 360px;
+      width: 380px;
       margin: 0;
-      font-family: 'Space Mono', 'Courier New', monospace;
-      font-size: 13px;
-      color: var(--ink);
-      background: var(--bg);
-      background-image:
-        linear-gradient(rgba(0,0,0,0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,0,0,0.045) 1px, transparent 1px);
-      background-size: 18px 18px;
-      min-height: 400px;
-      overflow-x: hidden;
-    }
-
-    .shell {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 4px;
-      padding-bottom: 14px;
-      border-bottom: 2px dashed var(--border);
-    }
-
-    .logo-container {
-      width: 38px;
-      height: 38px;
-      flex-shrink: 0;
-      border-radius: 8px;
-      background: var(--bg);
-      border: 2px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .logo-container svg {
-      width: 19px;
-      height: 19px;
-      fill: var(--ink);
-    }
-
-    .header-text h1 {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      color: var(--ink);
-    }
-
-    .header-text p {
-      margin: 3px 0 0;
-      font-size: 10px;
-      color: var(--ink-soft);
-      font-weight: 400;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .status-card {
-      background: var(--paper);
-      border: 2px solid var(--border);
-      border-radius: 6px;
-      padding: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .status-header {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #fff;
-      background: var(--ink);
-      margin-bottom: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 8px;
-      border-radius: 3px;
-    }
-
-    .status-header::before {
-      content: '';
-      display: block;
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--accent-2);
-    }
-
-    .status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 7px 0;
-      border-bottom: 1px dashed rgba(22,20,15,0.2);
-    }
-    .status-row:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-
-    .status-label {
-      color: var(--ink-soft);
-      font-size: 11px;
-      font-weight: 400;
-    }
-
-    .status-val {
-      font-weight: 700;
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      color: var(--ink);
-      background: #fff;
-      border: 1.5px solid var(--border);
-      padding: 2px 7px;
-      border-radius: 3px;
-    }
-
-    .status-val.highlight {
-      color: var(--ink);
-      background: var(--accent-2);
-      border-color: var(--border);
-    }
-
-    .alert {
       padding: 12px;
-      border-radius: 6px;
-      border: 2px solid var(--border);
-      font-size: 12px;
-      font-weight: 700;
-      display: none;
-      line-height: 1.4;
-      animation: slideDown 0.2s ease;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 5% 0%, rgba(119, 58, 112, .24), transparent 38%),
+        radial-gradient(ellipse at 100% 18%, rgba(54, 62, 157, .24), transparent 40%),
+        var(--bg);
+      font: 12px/1.45 var(--font);
+      -webkit-font-smoothing: antialiased;
     }
-
-    .btn {
-      width: 100%;
-      border: 2px solid var(--border);
-      padding: 12px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--ink);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: transform 0.12s ease, box-shadow 0.12s ease;
-      position: relative;
-      background: var(--bg);
-      box-shadow: var(--shadow);
-    }
-
-    .btn:hover:not(:disabled) {
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0 var(--border);
-    }
-
-    .btn:active:not(:disabled) {
-      transform: translate(2px, 2px);
-      box-shadow: 1px 1px 0 var(--border);
-    }
-
-    .btn:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      transform: none !important;
-      box-shadow: var(--shadow-sm) !important;
-    }
-
-    .btn-primary {
-      background: var(--ink);
-      color: #fff;
-    }
-
-    .btn-magic {
-      background: var(--accent-2);
-      color: var(--ink);
-    }
-
-    .btn-outline {
-      background: #fff;
-      color: var(--ink);
-    }
-
-    .btn svg {
-      width: 15px;
-      height: 15px;
-      fill: currentColor;
-    }
-
-    .spinner {
-      display: none;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255,255,255,0.35);
-      border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 0.7s linear infinite;
-    }
-
-    .btn-magic .spinner,
-    .btn-outline .spinner {
-      border: 2px solid rgba(22,20,15,0.2);
-      border-top-color: var(--ink);
-    }
-
-    .btn.loading .spinner {
-      display: block;
-    }
-    .btn.loading .btn-icon {
-      display: none;
-    }
-
-    .progress-container {
-      display: none;
-      background: var(--paper);
-      border: 2px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      box-shadow: var(--shadow);
-      animation: slideDown 0.2s ease;
-    }
-
-    .progress-text {
-      font-size: 10px;
-      color: var(--ink);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .progress-bar-bg {
-      width: 100%;
-      height: 10px;
-      background: #fff;
-      border: 1.5px solid var(--border);
-      border-radius: 3px;
+    button, input, select { font: inherit; }
+    .window {
       overflow: hidden;
-      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(12, 13, 21, .94);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .46), 0 0 0 1px rgba(255,255,255,.018) inset;
     }
-
-    .progress-bar-fill {
-      height: 100%;
-      background: var(--accent);
-      width: 0%;
-      transition: width 0.3s ease;
-      position: relative;
+    .topbar { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; }
+    .brand-orb {
+      display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center;
+      border: 1px solid rgba(255,255,255,.24); border-radius: 50%;
+      background: radial-gradient(circle at 28% 25%, #ff718a 0, #ca4f99 30%, #7357c5 64%, #3b448b 100%);
+      color: white; font-size: 15px; font-weight: 750; box-shadow: 0 0 24px rgba(126, 86, 204, .34);
     }
-
-    .progress-bar-fill::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-      animation: shimmer 1.5s infinite;
+    .brand-icon { display: block; width: 20px; height: 20px; }
+    .brand-copy { min-width: 0; flex: 1; }
+    .eyebrow { display: block; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    .wordmark { margin-top: 1px; font-size: 14px; font-weight: 650; letter-spacing: -.025em; }
+    .version { padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 9px; }
+    main { padding: 0 12px 12px; }
+    .intro { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 10px; color: var(--muted); font-size: 10px; }
+    .intro-code { color: var(--quiet); font-size: 9px; letter-spacing: .06em; white-space: nowrap; }
+    .panel {
+      position: relative; overflow: hidden; margin: 0 0 9px;
+      border: 1px solid var(--line); border-radius: 15px;
+      background: linear-gradient(145deg, rgba(26, 27, 42, .96), rgba(16, 17, 27, .98));
+      box-shadow: 0 8px 24px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.035) inset;
     }
-
-    .empty-state {
-      text-align: center;
-      padding: 26px 18px;
-      color: var(--ink-soft);
-      border: 2px dashed var(--border);
-      border-radius: 6px;
-      background: var(--paper);
+    .panel-head { display: flex; align-items: center; gap: 7px; min-height: 32px; padding: 8px 11px 7px; }
+    .panel-index { color: var(--violet); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+    .panel-title { margin: 0; color: #e7e4f4; font-size: 10px; font-weight: 650; letter-spacing: .075em; text-transform: uppercase; }
+    .panel-meta { margin-left: auto; color: var(--quiet); font-size: 8px; letter-spacing: .1em; }
+    .context-panel { border-color: rgba(163, 147, 255, .2); background: radial-gradient(ellipse at 78% 0%, rgba(86, 78, 172, .27), transparent 47%), linear-gradient(140deg, #211b31, #11121d 65%); }
+    .context-panel::after {
+      position: absolute; z-index: 0; top: 32px; right: 0; width: 100%; height: 80px; content: ""; pointer-events: none;
+      background-image: radial-gradient(rgba(208, 201, 255, .18) .8px, transparent .9px); background-size: 16px 16px; mask-image: linear-gradient(to bottom, #000, transparent);
     }
-    .empty-state svg {
-      width: 40px;
-      height: 40px;
-      fill: rgba(22,20,15,0.18);
-      margin-bottom: 10px;
+    .context-panel .panel-head, .context-panel .panel-body { position: relative; z-index: 1; }
+    .panel-body { padding: 7px 11px 11px; }
+    .status-table { display: grid; grid-template-columns: 1fr 1fr; row-gap: 7px; }
+    .status-cell { min-width: 0; }
+    .status-label { display: block; margin-bottom: 1px; color: #aaa6c0; font-size: 9px; }
+    .status-val { display: block; overflow: hidden; color: var(--text); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .status-live { display: inline-block; width: 6px; height: 6px; margin-right: 1px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px rgba(145,216,175,.65); vertical-align: 1px; }
+    .empty-state { padding: 12px; border: 1px dashed var(--line-strong); border-radius: 14px; background: var(--surface); color: var(--muted); font-size: 11px; }
+    .empty-state p { margin: 0; }
+    .empty-state strong { color: var(--text); font-weight: 650; }
+    .actions { display: grid; gap: 6px; }
+    .btn {
+      width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 999px;
+      background: rgba(255,255,255,.055); color: var(--text); font-size: 11px; font-weight: 580; cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, transform .12s ease;
     }
-    .empty-state p {
-      margin: 0;
-      font-size: 11px;
-      line-height: 1.5;
+    .btn:hover:not(:disabled) { border-color: rgba(227,226,255,.28); background: rgba(255,255,255,.1); }
+    .btn:active:not(:disabled) { transform: scale(.985); }
+    .btn:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #a994ff; outline-offset: 2px; }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .btn-primary { border-color: #f0eef5; background: #f1eff7; color: #171720; font-weight: 650; }
+    .btn-primary:hover:not(:disabled) { border-color: white; background: white; }
+    .btn-magic { border-color: rgba(169,148,255,.3); background: linear-gradient(100deg, rgba(113,80,171,.3), rgba(66,77,160,.3)); }
+    .btn-magic:hover:not(:disabled) { background: linear-gradient(100deg, rgba(128,89,193,.42), rgba(72,85,178,.42)); }
+    .btn-outline { background: transparent; }
+    .btn-text { line-height: 1.2; }
+    .spinner { display: none; width: 12px; height: 12px; border: 2px solid rgba(30,30,40,.24); border-top-color: currentColor; border-radius: 50%; animation: spin .7s linear infinite; }
+    .btn:not(.btn-primary) .spinner { border-color: rgba(255,255,255,.2); border-top-color: var(--text); }
+    .btn.loading .spinner { display: block; }
+    .btn.loading .btn-icon { display: none; }
+    .action-note { margin: 7px 2px 0; color: var(--quiet); font-size: 9px; line-height: 1.4; }
+    .progress-container { display: none; margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.22); }
+    .progress-text { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: var(--muted); font-size: 9px; }
+    #bulk-progress-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .progress-bar-bg { height: 6px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.1); }
+    .progress-bar-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9d7bea, #7486ed); transition: width .2s ease; }
+    .solver-card { display: none; }
+    #ai-tools > summary { cursor: pointer; list-style: none; }
+    #ai-tools > summary::-webkit-details-marker { display: none; }
+    #ai-tools > summary::after { content: "⌄"; margin-left: auto; color: var(--muted); font-size: 14px; transition: transform .15s ease; }
+    #ai-tools[open] > summary::after { transform: rotate(180deg); }
+    .ai-intro { display: flex; align-items: center; gap: 9px; padding: 8px 11px 10px; }
+    .ai-stamp { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border: 1px solid rgba(196,179,255,.24); border-radius: 11px; background: linear-gradient(145deg, rgba(157,113,217,.27), rgba(73,82,164,.2)); color: #d8c9ff; font-size: 10px; font-weight: 700; }
+    .ai-title { margin: 0; color: var(--text); font-size: 13px; font-weight: 630; letter-spacing: -.015em; }
+    .ai-description { margin: 2px 0 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .ai-body { display: grid; gap: 10px; padding: 0 11px 10px; }
+    .ai-step { display: grid; gap: 5px; }
+    .ai-step-title { display: flex; align-items: center; gap: 5px; color: #c1bfd0; font-size: 9px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
+    .step-number { color: #b39cff; }
+    .field { display: grid; gap: 4px; }
+    .solver-card label, .field-label { color: #b4b1c3; font-size: 9px; font-weight: 550; }
+    .solver-card select, .solver-card input:not([type="checkbox"]):not([type="range"]) {
+      width: 100%; min-height: 33px; padding: 7px 9px; border: 1px solid var(--line-strong); border-radius: 9px;
+      background: rgba(255,255,255,.055); color: var(--text); font: 10px var(--font);
     }
-
-    .footer {
-      text-align: center;
-      font-size: 10px;
-      color: var(--ink-soft);
-      margin-top: 2px;
-      padding-top: 12px;
-      border-top: 2px dashed var(--border);
-    }
-
-    .solver-card {
-      background: var(--paper);
-      border: 2px solid var(--border);
-      border-radius: 6px;
-      padding: 14px;
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-    }
-    .solver-card h2 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-    .solver-card label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--ink-soft); }
-    .solver-card select, .solver-card input, .solver-card textarea {
-      width: 100%; border: 1.5px solid var(--border); border-radius: 4px; padding: 8px;
-      font: inherit; font-size: 11px; background: #fff; color: var(--ink);
-    }
-    .solver-card textarea { resize: vertical; min-height: 54px; }
-    .solver-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .solver-note { margin: 0; font-size: 9px; color: var(--ink-soft); line-height: 1.4; }
-    .solver-progress { display: none; padding: 9px; background: #fff; border: 1px dashed var(--border); font-size: 10px; line-height: 1.4; max-height: 100px; overflow: auto; }
-
+    .solver-card select option { background: #171824; color: var(--text); }
+    .key-field { display: flex; gap: 5px; }
+    .key-field input { min-width: 0; flex: 1; }
+    .key-toggle { min-width: 46px; border: 1px solid var(--line-strong); border-radius: 9px; background: rgba(255,255,255,.07); color: #c8c4d8; font-size: 8px; font-weight: 650; letter-spacing: .06em; cursor: pointer; }
+    .solver-card input[type="range"] { width: 100%; accent-color: #a994ff; }
+    .solver-card input[type="checkbox"] { accent-color: #a994ff; }
+    .solver-note { margin: 0; color: var(--quiet); font-size: 9px; line-height: 1.45; }
+    .ai-actions { display: grid; gap: 5px; }
+    .ai-action { min-height: 36px; }
+    .actions-caption { margin: -1px 0 2px; color: var(--quiet); font-size: 9px; }
+    .solver-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .solver-grid .btn { min-height: 31px; padding: 5px; font-size: 9px; }
+    .ai-advanced { padding: 8px 11px 9px; border-top: 1px solid var(--line); }
+    .ai-advanced summary { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 9px; cursor: pointer; list-style: none; }
+    .ai-advanced summary::-webkit-details-marker { display: none; }
+    .ai-advanced summary::before { content: "+"; display: inline-grid; width: 16px; height: 16px; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); }
+    .ai-advanced[open] summary::before { content: "−"; }
+    .advanced-fields { display: grid; gap: 8px; padding-top: 9px; }
+    .check-row { display: flex; align-items: center; gap: 6px; }
+    .check-row input { width: 12px; height: 12px; margin: 0; }
+    .solver-progress { display: none; max-height: 72px; overflow: auto; margin: 0 11px 10px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.24); color: var(--muted); font: 9px/1.45 ui-monospace, Menlo, monospace; white-space: pre-line; }
+    .alert { display: none; margin: 0 0 9px; padding: 8px 10px; border: 1px solid; border-radius: 10px; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+    footer { display: flex; justify-content: space-between; gap: 7px; padding: 2px 3px 1px; color: var(--quiet); font-size: 8px; letter-spacing: .045em; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
-    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
   </style>
 </head>
 <body>
-  <div class="shell">
-
-    <div class="header">
-      <div class="logo-container">
-        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+  <div class="window">
+    <header class="topbar">
+      <div class="brand-orb" aria-hidden="true">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 6.1c-2.1-1.4-4.5-2-8-2v13.1c3.4 0 5.9.7 8 2.1m0-13.2c2.1-1.4 4.5-2 8-2v13.1c-3.4 0-5.9.7-8 2.1m0-13.2v13.2" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="m15.2 10.7 1.2 1.2 2.3-2.5" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
-      <div class="header-text">
-        <h1>WTF Coursera</h1>
-        <p>Aniket: Dear Coursera, what the fuck even is this?</p>
-      </div>
-    </div>
+      <div class="brand-copy"><span class="eyebrow">COURSE COMPANION</span><div class="wordmark">WTF Coursera</div></div>
+      <span class="version">v1.1.5</span>
+    </header>
+    <main>
+      <p class="intro"><span>Course progress, in one place.</span><span class="intro-code">LOCAL TOOL · 01</span></p>
+      <div id="result-alert" class="alert" role="status" aria-live="polite"></div>
 
-    <div id="result-alert" class="alert"></div>
+      <section id="page-status" class="panel context-panel" style="display:none" aria-label="Current page">
+        <div class="panel-head"><span class="status-live" aria-hidden="true"></span><h2 class="panel-title">Current page</h2><span class="panel-meta">CONTEXT</span></div>
+        <div class="panel-body status-table">
+          <div class="status-cell"><span class="status-label">Content type</span><span class="status-val" id="lbl-type">—</span></div>
+          <div class="status-cell"><span class="status-label">Course</span><span class="status-val" id="lbl-course">—</span></div>
+          <div class="status-cell"><span class="status-label">Lesson ID</span><span class="status-val" id="lbl-item">—</span></div>
+          <div class="status-cell"><span class="status-label">Connection</span><span class="status-val">Coursera · secure</span></div>
+        </div>
+      </section>
 
-    <div id="page-status" class="status-card" style="display: none;">
-      <div class="status-header">SYSTEM SCAN</div>
-      <div class="status-row">
-        <span class="status-label">Lesson Type</span>
-        <span class="status-val highlight" id="lbl-type">--</span>
-      </div>
-      <div class="status-row">
-        <span class="status-label">Item ID</span>
-        <span class="status-val" id="lbl-item">--</span>
-      </div>
-      <div class="status-row">
-        <span class="status-label">Course</span>
-        <span class="status-val" id="lbl-course">--</span>
-      </div>
-    </div>
+      <section id="empty-msg" class="empty-state" style="display:none">
+        <p><strong>No Coursera page detected.</strong><br>Open a course lesson and reopen this panel.</p>
+      </section>
 
-    <div id="empty-msg" class="empty-state" style="display: none;">
-      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-      <p>Open a Coursera lesson page and let’s pretend to study together.</p>
-    </div>
+      <section class="panel" id="action-buttons" style="display:none" aria-label="Course progress actions">
+        <div class="panel-head"><span class="panel-index">01</span><h2 class="panel-title">Progress actions</h2><span class="panel-meta">COURSE</span></div>
+        <div class="panel-body">
+          <div class="actions">
+            <button id="btn-skip-current" class="btn btn-primary"><span class="spinner" aria-hidden="true"></span><span class="btn-text">Complete this lesson</span></button>
+            <button id="btn-skip-readings" class="btn btn-outline"><span class="spinner" aria-hidden="true"></span><span class="btn-text">Complete readings in course</span></button>
+            <button id="btn-skip-all" class="btn btn-magic"><span class="spinner" aria-hidden="true"></span><span class="btn-text">Complete all course content</span></button>
+          </div>
+          <p class="action-note">Course-wide actions update progress on your Coursera account.</p>
+          <div id="bulk-progress-container" class="progress-container" aria-live="polite">
+            <div class="progress-text"><span id="bulk-progress-msg">Ready</span><span id="bulk-progress-pct">0%</span></div>
+            <div class="progress-bar-bg"><div id="bulk-progress-bar" class="progress-bar-fill"></div></div>
+          </div>
+        </div>
+      </section>
 
-    <div class="actions" id="action-buttons" style="display: none;">
-      <button id="btn-skip-current" class="btn btn-primary" style="margin-bottom: 10px;">
-        <svg class="btn-icon" viewBox="0 0 24 24"><path d="M13 3v6h8V3h-8zm0 18h8V11h-8v10zM3 21h8v-6H3v6zm0-8h8V3H3v10z"/></svg>
-        <div class="spinner"></div>
-        <span class="btn-text">Complete Current Lesson</span>
-      </button>
+      <details id="ai-tools" class="panel solver-card" aria-label="AI assistant" open>
+        <summary class="panel-head"><span class="panel-index">02</span><span class="panel-title">AI workspace</span><span class="panel-meta">OPTIONAL</span></summary>
+        <div class="ai-intro">
+          <div class="ai-stamp" aria-hidden="true">AI</div>
+          <div><h2 class="ai-title">Work with an AI provider</h2><p class="ai-description">Set up once, then choose a task for this assessment or course.</p></div>
+        </div>
+        <div class="ai-body">
+          <div class="ai-step">
+            <div class="ai-step-title"><span class="step-number">01 /</span> Provider connection</div>
+            <div class="field"><label for="provider">Provider</label><select id="provider"><option value="nvidia">NVIDIA NIM</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option></select></div>
+            <div class="field"><label for="api-key">API key</label><div class="key-field"><input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your provider key"><button class="key-toggle" id="toggle-api-key" type="button" aria-pressed="false">SHOW</button></div></div>
+            <p class="solver-note">Stored in this browser. Assessment questions and course context go to the selected provider when AI runs.</p>
+          </div>
+          <div class="ai-actions">
+            <div class="ai-step-title"><span class="step-number">02 /</span> Select a task</div>
+            <button id="btn-solve-quiz" class="btn btn-primary ai-action"><span class="btn-text">Run on current assessment</span></button>
+            <p class="actions-caption">Submits answers to the assessment open in Coursera.</p>
+            <div class="solver-grid">
+              <button id="btn-run-ai-course" class="btn"><span class="btn-text">AI course run</span></button>
+              <button id="btn-run-graded" class="btn"><span class="btn-text">Graded items only</span></button>
+              <button id="btn-run-videos" class="btn" style="grid-column:1/-1"><span class="btn-text">Videos &amp; readings only</span></button>
+            </div>
+          </div>
+        </div>
+        <details class="ai-advanced">
+          <summary>Advanced settings</summary>
+          <div class="advanced-fields">
+            <div class="field"><label for="model-name">Model name <span style="font-weight:400">(optional)</span></label><input id="model-name" type="text" autocomplete="off" placeholder="Use provider default"></div>
+            <div class="field"><label for="target-grade">Retry target <span id="target-grade-label">80%</span></label><input id="target-grade" type="range" min="50" max="100" step="5" value="80"><p class="solver-note">Higher targets can use more Coursera attempts.</p></div>
+            <label class="check-row"><input id="skip-practice" type="checkbox" checked><span>Skip practice activities</span></label>
+            <label class="check-row"><input id="auto-submit-discussions" type="checkbox"><span>Post AI discussion replies automatically</span></label>
+            <p class="solver-note">When enabled, generated text may be posted under your Coursera account.</p>
+          </div>
+        </details>
+        <div id="solver-progress" class="solver-progress" role="status" aria-live="polite"></div>
+      </details>
 
-      <button id="btn-skip-all" class="btn btn-magic" style="margin-bottom: 10px;">
-        <svg class="btn-icon" viewBox="0 0 24 24"><path d="M19.36 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.64-4.96zM13 13v4h-2v-4H8l4-4 4 4h-3z"/></svg>
-        <div class="spinner"></div>
-        <span class="btn-text">Complete Entire Course</span>
-      </button>
-
-      <button id="btn-skip-readings" class="btn btn-outline">
-        <svg class="btn-icon" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>
-        <div class="spinner"></div>
-        <span class="btn-text">Complete Readings Only</span>
-      </button>
-    </div>
-
-    <section id="ai-tools" class="solver-card" style="display:none;">
-      <h2>Quiz &amp; API Solver</h2>
-      <label for="provider">AI provider</label>
-      <select id="provider">
-        <option value="nvidia">NVIDIA NIM</option>
-        <option value="openai">OpenAI</option>
-        <option value="anthropic">Anthropic</option>
-        <option value="gemini">Google Gemini</option>
-      </select>
-      <label for="model-name">Model</label>
-      <input id="model-name" type="text" placeholder="Provider default model" />
-      <label for="api-key">API key(s), comma separated for fallback</label>
-      <textarea id="api-key" autocomplete="off" spellcheck="false" placeholder="Paste your provider API key"></textarea>
-      <div class="solver-grid">
-        <button id="btn-solve-quiz" class="btn btn-magic"><span class="btn-text">Solve Current Quiz</span></button>
-        <button id="btn-run-ai-course" class="btn btn-primary"><span class="btn-text">Run AI Full Course</span></button>
-        <button id="btn-run-graded" class="btn btn-outline"><span class="btn-text">Graded Only</span></button>
-        <button id="btn-run-videos" class="btn btn-outline"><span class="btn-text">Fast-Forward</span></button>
-      </div>
-      <label for="target-grade">Target grade: <span id="target-grade-label">80%</span></label>
-      <input id="target-grade" type="range" min="50" max="100" step="5" value="80" />
-      <label><input id="skip-practice" type="checkbox" checked style="width:auto;vertical-align:middle" /> Skip practice quizzes</label>
-      <p class="solver-note">Your API key is stored in this browser's extension storage and sent to the selected provider to answer quiz questions.</p>
-      <div id="solver-progress" class="solver-progress" aria-live="polite"></div>
-    </section>
-
-    <!-- Progress Bar UI -->
-    <div id="bulk-progress-container" class="progress-container">
-      <div class="progress-text">
-        <span id="bulk-progress-msg">Initializing...</span>
-        <span id="bulk-progress-pct">0%</span>
-      </div>
-      <div class="progress-bar-bg">
-        <div id="bulk-progress-bar" class="progress-bar-fill"></div>
-      </div>
-    </div>
-
-    <div class="footer">
-      Note: only works if you're actually enrolled (Enroll) in the course.
-    </div>
-
+      <footer><span>LOCAL UTILITY · NO ANALYTICS</span><span>READY WHEN YOU ARE</span></footer>
+    </main>
   </div>
   <script src="popup.js"></script>
 </body>

@@ -37,7 +37,7 @@ async function getActiveCourseraTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   let hostname = '';
   try { hostname = new URL(tab?.url || '').hostname; } catch (_) {}
-  if (!tab || !hostname.endsWith('coursera.org')) {
+  if (!tab || !tab.url?.startsWith('https://') || hostname !== 'www.coursera.org') {
     return null;
   }
   return tab;
@@ -55,7 +55,7 @@ async function loadContext() {
 
     document.getElementById('page-status').style.display = 'block';
     document.getElementById('action-buttons').style.display = 'block';
-    document.getElementById('ai-tools').style.display = 'flex';
+    document.getElementById('ai-tools').style.display = 'block';
     document.getElementById('empty-msg').style.display = 'none';
 
     document.getElementById('lbl-type').textContent = TYPE_LABELS[context.itemType] || context.itemType;
@@ -82,17 +82,17 @@ async function markCompleted() {
 
     const result = await chrome.tabs.sendMessage(tab.id, { action: 'markCompleted' });
     if (result && result.success) {
-      showAlert('success', '✅ Done! Reloading the page...');
+      showAlert('success', 'Lesson completed. Refreshing the page…');
       setTimeout(() => {
         chrome.tabs.reload(tab.id);
       }, 1500);
     } else {
-      showAlert('error', result?.error || 'Unknown error. Check the console (F12).');
+      showAlert('error', result?.error || 'The lesson could not be completed.');
     }
   } catch (error) {
     showAlert('error', error.message);
   } finally {
-    setLoading('btn-skip-current', false, 'Complete Current Lesson');
+    setLoading('btn-skip-current', false, 'Complete this lesson');
   }
 }
 
@@ -122,7 +122,7 @@ document.getElementById('btn-skip-all').addEventListener('click', async () => {
     }
   } catch (error) {
     showAlert('error', `Error: ${error.message}`);
-    setLoading('btn-skip-all', false, 'Complete Entire Course');
+    setLoading('btn-skip-all', false, 'Complete all course content');
     progContainer.style.display = 'none';
   }
 });
@@ -151,14 +151,17 @@ document.getElementById('btn-skip-readings').addEventListener('click', async () 
     }
   } catch (error) {
     showAlert('error', `Error: ${error.message}`);
-    setLoading('btn-skip-readings', false, 'Complete Readings Only');
+    setLoading('btn-skip-readings', false, 'Complete readings in course');
     progContainer.style.display = 'none';
   }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.action === 'progressUpdate') {
-    const msg = message.message;
+    if (sender.id !== chrome.runtime.id || !sender.tab?.id) return;
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([activeTab]) => {
+      if (!activeTab || activeTab.id !== sender.tab.id) return;
+    const msg = String(message.message || '');
     const progMsg = document.getElementById('bulk-progress-msg');
     const progBar = document.getElementById('bulk-progress-bar');
     const progPct = document.getElementById('bulk-progress-pct');
@@ -169,29 +172,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (match) {
       const current = parseInt(match[1]);
       const total = parseInt(match[2]);
-      const pct = Math.round((current / total) * 100);
-      progBar.style.width = `${pct}%`;
-      progPct.textContent = `${pct}%`;
+      if (total > 0) {
+        const pct = Math.min(100, Math.round((current / total) * 100));
+        progBar.style.width = `${pct}%`;
+        progPct.textContent = `${pct}%`;
+      }
     }
     
-    if (msg.includes('✅ Hoàn thành toàn bộ') || msg.includes('✅ All lessons complete') || msg.includes('✅ All readings complete')) {
-       setLoading('btn-skip-all', false, 'Complete Entire Course');
-       setLoading('btn-skip-readings', false, 'Complete Readings Only');
-       progBar.style.width = '100%';
-       progPct.textContent = '100%';
-       
-       progMsg.textContent = 'Done! Reloading the page...';
-       setTimeout(async () => {
-         const tab = await getActiveCourseraTab();
-         if (tab) chrome.tabs.reload(tab.id);
-       }, 2000);
+    const normalizedMessage = msg.toLowerCase();
+    const finished = /all(?:\s+lessons)?\s+processed|all readings processed|hoàn thành toàn bộ/.test(normalizedMessage);
+    const failed = /could not retrieve|course not found|no videos|no reading materials|error:/.test(normalizedMessage);
+    if (finished || failed) {
+      setLoading('btn-skip-all', false, 'Complete all course content');
+      setLoading('btn-skip-readings', false, 'Complete readings in course');
+      if (finished) {
+        progBar.style.width = '100%';
+        progPct.textContent = '100%';
+        const failures = Number(normalizedMessage.match(/(\d+) failed/)?.[1] || 0);
+        if (failures) showAlert('error', `Finished with ${failures} item(s) that Coursera did not confirm.`);
+        else showAlert('success', 'Course progress updated. Refreshing the page…');
+        setTimeout(async () => {
+          const tab = await getActiveCourseraTab();
+          if (tab) chrome.tabs.reload(tab.id);
+        }, 2000);
+      } else {
+        showAlert('error', msg);
+      }
     }
+    });
   }
 });
 
 loadContext();
 
-const settingsFields = ['provider', 'model-name', 'api-key', 'target-grade', 'skip-practice'];
+const settingsFields = ['provider', 'model-name', 'api-key', 'target-grade', 'skip-practice', 'auto-submit-discussions'];
+document.getElementById('toggle-api-key').addEventListener('click', (event) => {
+  const field = document.getElementById('api-key');
+  const shouldShow = field.type === 'password';
+  field.type = shouldShow ? 'text' : 'password';
+  event.currentTarget.textContent = shouldShow ? 'HIDE' : 'SHOW';
+  event.currentTarget.setAttribute('aria-pressed', String(shouldShow));
+});
+
 function readSolverSettings() {
   const grade = Number(document.getElementById('target-grade').value) / 100;
   return {
@@ -199,7 +221,8 @@ function readSolverSettings() {
     modelName: document.getElementById('model-name').value.trim(),
     apiKey: document.getElementById('api-key').value.trim(),
     targetGrade: grade,
-    skipPractice: document.getElementById('skip-practice').checked
+    skipPractice: document.getElementById('skip-practice').checked,
+    autoSubmitDiscussions: document.getElementById('auto-submit-discussions').checked
   };
 }
 
@@ -217,6 +240,7 @@ chrome.storage.local.get(['solverSettings'], ({ solverSettings = {} }) => {
     document.getElementById('target-grade-label').textContent = `${grade}%`;
   }
   if (typeof solverSettings.skipPractice === 'boolean') document.getElementById('skip-practice').checked = solverSettings.skipPractice;
+  if (typeof solverSettings.autoSubmitDiscussions === 'boolean') document.getElementById('auto-submit-discussions').checked = solverSettings.autoSubmitDiscussions;
 });
 
 settingsFields.forEach((id) => {
@@ -231,7 +255,7 @@ settingsFields.forEach((id) => {
 async function runSolver(action, extraSettings = {}) {
   hideAlert();
   const tab = await getActiveCourseraTab();
-  if (!tab) throw new Error('Please open a Coursera course page first.');
+  if (!tab) throw new Error('Open a Coursera course page first.');
   const context = await chrome.tabs.sendMessage(tab.id, { action: 'getContext' });
   if (!context || context.error || !context.courseSlug) throw new Error('Open a Coursera course lesson, quiz, or assignment first.');
   const settings = { ...readSolverSettings(), ...extraSettings };
@@ -243,7 +267,7 @@ async function runSolver(action, extraSettings = {}) {
   saveSolverSettings();
   const progress = document.getElementById('solver-progress');
   progress.style.display = 'block';
-  progress.textContent = action === 'RUN_SINGLE_QUIZ' ? 'Starting current quiz…' : 'Starting course solver…';
+  progress.textContent = action === 'RUN_SINGLE_QUIZ' ? 'Starting current assessment…' : 'Starting course run…';
   const response = await chrome.runtime.sendMessage({
     action,
     slug: context.courseSlug,

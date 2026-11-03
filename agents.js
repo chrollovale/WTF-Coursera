@@ -37,6 +37,7 @@ export class BaseAgent {
       "The questions are in a dict format where each key represents the question id, and the value is a JSON dict containing:\n" +
       "- 'Question': the question text.\n" +
       "- 'Options': a list of options (if applicable) with option_id and value.\n" +
+      "- 'Blanks': for MULTIPLE_FILLABLE_BLANKS, a list of blank_id values, each with its own 'Options' list.\n" +
       "- 'Type': the question type.\n" +
       "- 'previous_attempts': (optional) past attempt results. ALWAYS review these to avoid repeating mistakes.\n\n" +
       `COVERAGE: there are ${ids.length} question(s). Your 'responses' array MUST contain exactly ${ids.length} entries, one per question, ` +
@@ -66,67 +67,101 @@ export class LogicAgent extends BaseAgent {
       "Rules:\n" +
       "1. MULTIPLE_CHOICE: Single-choice question. Select exactly one option_id and place it in the 'chosen' list.\n" +
       "2. CHECKBOX: Multi-choice question. Select one or more option_ids and place them in the 'chosen' list. Use the 'reasoning' field to evaluate each option individually based on the question constraints.\n" +
-      "3. MULTIPLE_FILLABLE_BLANKS: Provide a dict of blank_id to option_id in the 'answer' field. Use the 'reasoning' field to deduce the correct fit for each blank contextually.\n\n" +
+      "3. MULTIPLE_FILLABLE_BLANKS: Set 'answer' to a JSON-encoded object mapping every exact blank_id to one of that blank's exact option_id values. Include every blank once, and no extra keys.\n\n" +
       "IMPORTANT for CHECKBOX:\n" +
       "If a question has 'previous_attempts', each entry records a prior submission of chosen option_ids:\n" +
-      "- 'response' is a list of option_ids that were chosen together.\n" +
-      "- 'hint' states that this combination was graded INCORRECT and shows the fractional score earned (e.g. 'Score: 1/3').\n" +
-      "Use these partial scores to logically deduce the status of options. Integrate all attempts to find an untested combination that satisfies these constraints."
+      "- 'response' is the prior selection (a list for checkbox questions, or a blank_id-to-option_id map for fillable blanks).\n" +
+      "- 'hint' states that Coursera graded that response INCORRECT.\n" +
+      "Use the prior results to avoid repeating a known-wrong response and reason about the remaining options."
     );
   }
 
   postProcess(ansType, chosen, answer, domainQuestions, qId) {
-    if (["CHECKBOX", "CHECKBOX_REFLECT"].includes(ansType) && typeof chosen === 'string') {
-      chosen = [chosen];
-    }
+    if (["MULTIPLE_CHOICE", "CHECKBOX", "CHECKBOX_REFLECT"].includes(ansType)) {
+      if (typeof chosen === "string") chosen = [chosen];
+      if (!Array.isArray(chosen)) throw new Error(`Invalid option selection for ${qId}.`);
 
-    const qOpts = domainQuestions?.[qId]?.Options || [];
+      const qOpts = domainQuestions?.[qId]?.Options || [];
+      const normalized = chosen.map((value) => {
+        const candidate = String(value).trim();
+        const byId = qOpts.find((o) => o.option_id === candidate || o.original_id === candidate);
+        const labelMatches = qOpts.filter((o) => String(o.value || "").trim().toLowerCase() === candidate.toLowerCase());
+        if (labelMatches.length > 1 && !byId) throw new Error(`The answer for ${qId} matches multiple option labels.`);
+        const byLabel = labelMatches[0];
+        const option = byId || byLabel;
+        if (!option) throw new Error(`The answer for ${qId} did not match a listed option.`);
+        return option.original_id || option.option_id;
+      });
 
-    if (ansType === "MULTIPLE_CHOICE" && Array.isArray(chosen) && chosen.length > 0) {
-      let optId = chosen[0];
-      if (!qOpts.find(o => o.option_id === optId)) {
-        let matched = qOpts.find(o => o.value && typeof o.value === 'string' && o.value.toLowerCase().includes(String(optId).toLowerCase()));
-        if (matched) {
-          chosen = [matched.option_id];
-        }
+      if (ansType === "MULTIPLE_CHOICE" && normalized.length !== 1) {
+        throw new Error(`The answer for ${qId} must select exactly one option.`);
       }
+      if (ansType !== "MULTIPLE_CHOICE" && new Set(normalized).size !== normalized.length) {
+        throw new Error(`The answer for ${qId} contains a duplicate option.`);
+      }
+      return { chosen: normalized, answer };
     }
 
-    if (["MULTIPLE_CHOICE", "CHECKBOX", "CHECKBOX_REFLECT"].includes(ansType) && Array.isArray(chosen)) {
-      let mappedChosen = [];
-      for (let c of chosen) {
-        let optObj = qOpts.find(o => o.option_id === c);
-        if (optObj && optObj.original_id) {
-          mappedChosen.push(optObj.original_id);
-        } else {
-          mappedChosen.push(c);
-        }
+    if (ansType === "MULTIPLE_FILLABLE_BLANKS") {
+      if (typeof answer === "string") {
+        try { answer = JSON.parse(answer); }
+        catch { throw new Error(`The fill-in-the-blanks answer for ${qId} was not valid JSON.`); }
       }
-      chosen = mappedChosen;
+      if (!answer || typeof answer !== "object" || Array.isArray(answer)) {
+        throw new Error(`The fill-in-the-blanks answer for ${qId} must map blank IDs to option IDs.`);
+      }
+
+      const blanks = domainQuestions?.[qId]?.Blanks || [];
+      if (blanks.length === 0 || Object.keys(answer).length !== blanks.length) {
+        throw new Error(`The fill-in-the-blanks answer for ${qId} must cover every blank exactly once.`);
+      }
+      const normalized = Object.create(null);
+      for (const blank of blanks) {
+        const blankId = String(blank.blank_id);
+        const optionId = answer[blankId];
+        const allowed = (blank.Options || []).some((option) => String(option.option_id) === String(optionId));
+        if (typeof optionId !== "string" || !allowed) {
+          throw new Error(`The answer for blank ${blankId} in ${qId} is missing or invalid.`);
+        }
+        normalized[blankId] = optionId;
+      }
+      return { chosen: [], answer: normalized };
     }
+
     return { chosen, answer };
   }
 
   formatPayload(partId, qType, chosen, answer) {
     if (qType === "MULTIPLE_CHOICE") {
+      if (!Array.isArray(chosen) || chosen.length !== 1 || typeof chosen[0] !== "string" || !chosen[0]) {
+        throw new Error("A multiple-choice response must contain one valid Coursera option ID.");
+      }
       return {
         questionId: partId,
         questionType: qType,
         questionResponse: { multipleChoiceResponse: { chosen: chosen ? chosen[0] : null } }
       };
     } else if (qType === "CHECKBOX" || qType === "CHECKBOX_REFLECT") {
+      if (!Array.isArray(chosen) || chosen.some((id) => typeof id !== "string" || !id)) {
+        throw new Error("A checkbox response must contain valid Coursera option IDs.");
+      }
       return {
         questionId: partId,
         questionType: qType,
         questionResponse: { checkboxResponse: { chosen: chosen || [] } }
       };
     } else if (qType === "MULTIPLE_FILLABLE_BLANKS") {
-      let responses = [];
-      if (answer && typeof answer === 'object' && !Array.isArray(answer)) {
-        responses = Object.keys(answer).map(blankId => ({
-          multipleChoiceFillableBlankResponse: { id: blankId, optionId: answer[blankId] }
-        }));
+      if (!answer || typeof answer !== "object" || Array.isArray(answer)) {
+        throw new Error("A complete blank-to-option answer map is required.");
       }
+      const responses = Object.keys(answer).map(blankId => {
+        const optionId = answer[blankId];
+        if (typeof optionId !== "string" || !optionId) {
+          throw new Error(`A valid option is required for blank ${blankId}.`);
+        }
+        return { multipleChoiceFillableBlankResponse: { id: blankId, optionId } };
+      });
+      if (responses.length === 0) throw new Error("A fill-in-the-blanks response cannot be empty.");
       return {
         questionId: partId,
         questionType: qType,
@@ -341,7 +376,8 @@ export class ResourceAgent extends BaseAgent {
       "RESOURCE",
       "You are the Resource Agent. Your skill is providing URLs or specific file inputs.\n" +
       "Rules:\n" +
-      "1. FILE_UPLOAD, URL, WIDGET: Provide a relevant submission summary, URL, or JSON in the 'answer' field."
+      "1. URL: Provide a complete HTTPS URL in the 'answer' field.\n" +
+      "2. WIDGET: Provide the required JSON or text in the 'answer' field."
     );
   }
 
@@ -359,14 +395,15 @@ export class ResourceAgent extends BaseAgent {
 
   formatPayload(partId, qType, chosen, answer) {
     if (qType === "FILE_UPLOAD") {
-      const urlVal = (answer && typeof answer === 'string' && answer.startsWith("http")) ? answer : "https://raw.githubusercontent.com/yamantaka-singh/skipera/main/README.md";
-      return {
-        questionId: partId,
-        questionType: qType,
-        questionResponse: { fileUploadResponse: { title: "submission.txt", caption: answer || "Assignment Submission", fileUrl: urlVal } }
-      };
+      throw new Error("File upload questions require a real user-provided file and are not supported by the AI solver.");
     } else if (qType === "URL") {
-      const urlVal = (answer && typeof answer === 'string' && answer.startsWith("http")) ? answer : "https://github.com";
+      let parsedUrl;
+      try { parsedUrl = new URL(String(answer || "").trim()); }
+      catch { throw new Error("The URL answer must be a complete HTTPS URL."); }
+      if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password) {
+        throw new Error("The URL answer must be a complete HTTPS URL without embedded credentials.");
+      }
+      const urlVal = parsedUrl.href;
       return {
         questionId: partId,
         questionType: qType,

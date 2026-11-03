@@ -44,6 +44,7 @@ async function courseraFetch(url, options = {}) {
 
   return fetch(url, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(20000),
     credentials: 'include',
     headers,
   });
@@ -63,11 +64,11 @@ function getCourseContext() {
 // ===== GET courseId AND userId =====
 async function getCourseId(courseSlug) {
   try {
-    const res = await fetch(`${BASE}/api/onDemandCourses.v1?q=slug&slug=${courseSlug}&fields=id`);
+    const params = new URLSearchParams({ q: 'slug', slug: courseSlug, fields: 'id' });
+    const res = await courseraFetch(`${BASE}/api/onDemandCourses.v1?${params.toString()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const id = data?.elements?.[0]?.id ?? null;
-    if (id) console.log('[CourseraSkip] courseId:', id);
     return id;
   } catch (e) {
     console.log('[CourseraSkip] getCourseId error:', e.message);
@@ -76,41 +77,14 @@ async function getCourseId(courseSlug) {
 }
 
 async function getUserId() {
-  // Don't use chrome.storage.local because it will be stuck in the old cache when changing the nick
-  // OPTION 1: Search in script tags (the same way the original malware does)
-  try {
-    const scripts = document.getElementsByTagName('script');
-    for (const script of scripts) {
-      const text = script.textContent;
-      if (text && text.includes('"email_address"') && text.includes('"id"')) {
-        const match = text.match(/"id"\s*:\s*(\d+)/);
-        if (match && match[1]) {
-          console.log('[CourseraSkip] userId from script tag:', match[1]);
-          return match[1];
-        }
-      }
-      
-      // Format of Coursera's Apollo State
-      if (text && text.includes('ROOT_QUERY') && text.includes('userId')) {
-        const match2 = text.match(/"userId"\s*:\s*(\d+)/);
-        if (match2 && match2[1]) {
-          console.log('[CourseraSkip] userId from Apollo:', match2[1]);
-          return match2[1];
-        }
-      }
-    }
-  } catch (e) {
-    console.log('[CourseraSkip] DOM parse error:', e);
-  }
-
-  // METHOD 2: Use the valid API with full CSRF headers
+  // Ask Coursera directly rather than scraping an unrelated numeric id from
+  // page scripts, which can select the wrong account identifier.
   try {
     const res = await courseraFetch(`${BASE}/api/users.v1?q=me&fields=id`);
     if (res.ok) {
       const data = await res.json();
       const userId = data?.elements?.[0]?.id ?? null;
       if (userId) {
-        console.log('[CourseraSkip] userId from API:', userId);
         return userId;
       }
     }
@@ -182,7 +156,8 @@ async function getVideoMeta(courseId, courseSlug, itemId) {
 
 async function reportVideoProgress(userId, courseId, videoId, duration) {
   const progressId = `${userId}~${courseId}~${videoId}`;
-  const validDuration = (typeof duration === 'number' && isFinite(duration) && duration > 0) ? duration : 9999999;
+  const validDuration = Number(duration);
+  if (!Number.isFinite(validDuration) || validDuration <= 0) return false;
   const viewedUpTo = Math.max(0, validDuration - 1000);
   console.log(`[CourseraSkip] reportProgress: viewedUpTo=${viewedUpTo}ms`);
   
@@ -227,6 +202,8 @@ async function handleReadingMaterial() {
 
   const total = items.length;
   let completed = 0;
+  let succeeded = 0;
+  let failed = 0;
   
   if (total === 0) {
     chrome.runtime.sendMessage({ action: 'progressUpdate', message: 'No reading materials found in the course!' });
@@ -249,8 +226,11 @@ async function handleReadingMaterial() {
     
     await Promise.all(batch.map(async (item) => {
       try {
-        await markSupplementCompleted(userId, courseId, courseSlug, item.id);
+        const result = await markSupplementCompleted(userId, courseId, courseSlug, item.id);
+        if (result?.success) succeeded++;
+        else failed++;
       } catch (e) {
+        failed++;
         console.log('[CourseraSkip] Supplement error for item', item.id, e);
       }
     }));
@@ -262,7 +242,7 @@ async function handleReadingMaterial() {
     await sleep(2000);
   }
 
-  chrome.runtime.sendMessage({ action: 'progressUpdate', message: `✅ All readings complete! Please refresh the page.` });
+  chrome.runtime.sendMessage({ action: 'progressUpdate', message: `✅ All readings processed: ${succeeded}/${total} completed; ${failed} failed. Please refresh the page.` });
 }
 
 async function handleUngradedPlugin() {
@@ -316,8 +296,6 @@ async function markLectureCompleted(userId, courseId, courseSlug, itemId, isBulk
   const progressOk = await reportVideoProgress(userId, courseId, meta.videoId, meta.duration);
 
   // === B4: Exactly as in the original code - retry actions/complete until the backend finishes processing ===
-  console.log('[CourseraSkip] Retry URL:', completeUrl);
-  
   const MAX_WAIT_MS = isBulk ? 20000 : 90000; 
   const INTERVAL_MS = 3000;
   const startTime = Date.now();
@@ -343,9 +321,15 @@ async function markLectureCompleted(userId, courseId, courseSlug, itemId, isBulk
   }
 
   if (progressOk) {
-    return { success: true, step: 3, videoId: meta.videoId, message: '✅ Progress has been saved, but Coursera has not updated the interface yet. Try refreshing the page after 1 minute.' };
+    return {
+      success: false,
+      progressSaved: true,
+      step: 3,
+      videoId: meta.videoId,
+      error: `Coursera accepted the video progress update, but did not confirm lesson completion within ${Math.round(MAX_WAIT_MS / 1000)} seconds. Refresh the course page to check its status.`
+    };
   }
-  return { success: false, error: 'Progress reporting failed after 90 seconds.' };
+  return { success: false, error: `Coursera did not confirm lesson completion within ${Math.round(MAX_WAIT_MS / 1000)} seconds.` };
 }
 
 async function markSupplementCompleted(userId, courseId, courseSlug, itemId) {
@@ -388,8 +372,6 @@ async function markCurrentItemCompleted() {
   const userId = await getUserId(courseId);
   if (!userId) return { success: false, error: 'Could not retrieve userId. Make sure you are logged in to Coursera.' };
   
-  console.log(`[CourseraSkip] courseId=${courseId} | userId=${userId}`);
-
   if (itemType === 'lecture') {
     const result = await markLectureCompleted(userId, courseId, courseSlug, itemId);
     const suffix = result.retries ? ` (retry ×${result.retries})` : result.step === 'fallback-PUT' ? ' (fallback)' : '';
@@ -411,7 +393,14 @@ async function getAllCourseItems(courseSlug) {
   try {
     const includes = "modules,lessons,passableItemGroups,passableItemGroupChoices,passableLessonElements,items,tracks,gradePolicy,gradingParameters,embeddedContentMapping";
     const fields = "moduleIds,onDemandCourseMaterialModules.v1(name,slug,description,timeCommitment,lessonIds,optional,learningObjectives),onDemandCourseMaterialLessons.v1(name,slug,timeCommitment,elementIds,optional,trackId),onDemandCourseMaterialPassableItemGroups.v1(requiredPassedCount,passableItemGroupChoiceIds,trackId),onDemandCourseMaterialPassableItemGroupChoices.v1(name,description,itemIds),onDemandCourseMaterialPassableLessonElements.v1(gradingWeight,isRequiredForPassing),onDemandCourseMaterialItems.v2(name,originalName,slug,timeCommitment,contentSummary,isLocked,lockableByItem,itemLockedReasonCode,trackId,lockedStatus,itemLockSummary),onDemandCourseMaterialTracks.v1(passablesCount),onDemandGradingParameters.v1(gradedAssignmentGroups),contentAtomRelations.v1(embeddedContentSourceCourseId,subContainerId)";
-    const url = `${BASE}/api/onDemandCourseMaterials.v2/?q=slug&slug=${courseSlug}&includes=${includes}&fields=${fields}&showLockedItems=true`;
+    const params = new URLSearchParams({
+      q: 'slug',
+      slug: courseSlug,
+      includes,
+      fields,
+      showLockedItems: 'true'
+    });
+    const url = `${BASE}/api/onDemandCourseMaterials.v2/?${params.toString()}`;
     
     const res = await courseraFetch(url);
     if (!res.ok) return null;
@@ -445,6 +434,8 @@ async function markAllItemsCompleted() {
 
   const total = items.length;
   let completed = 0;
+  let succeeded = 0;
+  let failed = 0;
   
   if (total === 0) {
     chrome.runtime.sendMessage({ action: 'progressUpdate', message: 'No videos or readings found in the course!' });
@@ -473,11 +464,16 @@ async function markAllItemsCompleted() {
       try {
         const typeName = item.contentSummary.typeName;
         if (typeName.includes('lecture')) {
-           await markLectureCompleted(userId, courseId, courseSlug, item.id, true);
+           const result = await markLectureCompleted(userId, courseId, courseSlug, item.id, true);
+           if (result?.success) succeeded++;
+           else failed++;
         } else if (typeName.includes('supplement')) {
-           await markSupplementCompleted(userId, courseId, courseSlug, item.id);
+           const result = await markSupplementCompleted(userId, courseId, courseSlug, item.id);
+           if (result?.success) succeeded++;
+           else failed++;
         }
       } catch (e) {
+        failed++;
         console.log('[CourseraSkip] Lỗi item', item.id, e);
       }
     }));
@@ -488,10 +484,11 @@ async function markAllItemsCompleted() {
     await sleep(2000);
   }
 
-  chrome.runtime.sendMessage({ action: 'progressUpdate', message: `✅ All ${total} lessons completed! Please refresh the page.` });
+  chrome.runtime.sendMessage({ action: 'progressUpdate', message: `✅ All lessons processed: ${succeeded}/${total} completed; ${failed} failed. Please refresh the page.` });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || !message || typeof message !== 'object') return;
   if (message.action === 'markCompleted') {
     markCurrentItemCompleted()
       .then(sendResponse)
@@ -499,12 +496,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message.action === 'markAllCompleted') {
-    markAllItemsCompleted();
+    markAllItemsCompleted().catch((err) => chrome.runtime.sendMessage({
+      action: 'progressUpdate',
+      message: `Error: ${err?.message || 'Could not complete course items.'}`
+    }).catch(() => {}));
     sendResponse({ success: true, message: "Background process started." });
     return true;
   }
   if (message.action === 'markReadingsCompleted') {
-    handleReadingMaterial();
+    handleReadingMaterial().catch((err) => chrome.runtime.sendMessage({
+      action: 'progressUpdate',
+      message: `Error: ${err?.message || 'Could not complete readings.'}`
+    }).catch(() => {}));
     sendResponse({ success: true, message: "Background reading process started." });
     return true;
   }

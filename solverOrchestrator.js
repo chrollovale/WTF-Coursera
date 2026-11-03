@@ -97,6 +97,7 @@ export async function runFullCourse(courseSlug, settings, tabId) {
     }
     updateDashboard(msg, type, safeSlug);
   };
+  let completedCourse = false;
   
   try {
     const userId = await getUserId();
@@ -135,7 +136,15 @@ export async function runFullCourse(courseSlug, settings, tabId) {
       
       updateProgress(`Found ${uncompleted.length} uncompleted items.`);
       if (uncompleted.length === 0) {
-        updateProgress("Course Complete!", "complete");
+        const remainingCount = items.filter(item => !completedIds.has(item.id)).length;
+        if (remainingCount === 0 && items.length > 0) {
+          completedCourse = true;
+          updateProgress("Course Complete!", "complete");
+        } else if (remainingCount > 0) {
+          updateProgress(`Run finished with ${remainingCount} item(s) still incomplete because they were skipped or unsupported.`, "skip");
+        } else {
+          updateProgress("No course items were found to process.", "skip");
+        }
         break;
       }
       
@@ -189,7 +198,7 @@ export async function runFullCourse(courseSlug, settings, tabId) {
       if (batchableItems.length > 0) {
         updateProgress(`Fast-forwarding ${batchableItems.length} videos & reading items in parallel...`, "active");
         
-        await runConcurrent(batchableItems, 10, async (item) => {
+        await runConcurrent(batchableItems, 4, async (item) => {
           if (tabId && runContext.isCancelled) return;
           itemAttempts.set(item.id, (itemAttempts.get(item.id) || 0) + 1);
           try {
@@ -217,6 +226,11 @@ export async function runFullCourse(courseSlug, settings, tabId) {
             await triggerQuizSolver(courseId, item.id, settings, tabId, safeSlug, runContext, materials);
             updateProgress(`Completed quiz item: ${item.name}`, "complete");
           } else if (type === "discussionPrompt") {
+            if (settings?.autoSubmitDiscussions !== true) {
+              updateProgress(`Skipped discussion (automatic posting is off): ${item.name}`, "skip");
+              skippedItems.add(item.id);
+              continue;
+            }
             await solveDiscussion(courseId, item.id, settings, tabId);
             updateProgress(`Completed discussion: ${item.name}`, "complete");
           } else if (peerTypes.has(type)) {
@@ -236,6 +250,21 @@ export async function runFullCourse(courseSlug, settings, tabId) {
 
       break;
     }
+
+    if (loopCount >= 100 && !completedCourse && !runContext.isCancelled) {
+      const [finalCompleted, finalMaterials] = await Promise.all([
+        getCompletedItems(userId, courseId),
+        getCourseMaterials(safeSlug)
+      ]);
+      const finalItems = finalMaterials?.linked?.["onDemandCourseMaterialItems.v2"] || [];
+      const remainingCount = finalItems.filter(item => !finalCompleted.has(item.id)).length;
+      if (finalItems.length > 0 && remainingCount === 0) {
+        completedCourse = true;
+        updateProgress("Course Complete!", "complete");
+      } else {
+        updateProgress(`Stopped after 100 passes. Could not verify completion; ${remainingCount} item(s) remain incomplete.`, "error");
+      }
+    }
   } catch (err) {
     console.error(err);
     updateDashboard(`Run failed: ${err.message}`, "error", safeSlug);
@@ -244,7 +273,7 @@ export async function runFullCourse(courseSlug, settings, tabId) {
   }
   
   if (tabId) activeRuns.delete(tabId);
-  return { status: "Finished" };
+  return { status: completedCourse ? "Finished" : runContext.isCancelled ? "Cancelled" : "Finished with items remaining" };
 }
 
 async function solveDiscussion(courseId, itemId, settings, tabId) {
@@ -307,8 +336,8 @@ async function solveDiscussion(courseId, itemId, settings, tabId) {
     const llmResult = await callLLMProvider(settings.provider, keys, settings.modelName, systemPrompt, userPrompt);
     
     let answerText = "";
-    if (llmResult && llmResult.responses && llmResult.responses.length > 0) {
-       answerText = llmResult.responses[0].answer;
+    if (llmResult && Array.isArray(llmResult.responses) && llmResult.responses.length > 0 && typeof llmResult.responses[0]?.answer === "string") {
+       answerText = llmResult.responses[0].answer.trim();
     }
     
     if (!answerText) {
@@ -321,8 +350,14 @@ async function solveDiscussion(courseId, itemId, settings, tabId) {
     const submitUrl = `onDemandCourseForumAnswers.v1/?fields=content,forumQuestionId&includes=profiles`;
     
     // Convert to CML format
-    const lines = answerText.split("\n").filter(line => line.trim().length > 0);
-    const cmlValue = "<co-content>" + lines.map(line => `<text>${line}</text>`).join("") + "</co-content>";
+    const lines = answerText.slice(0, 12000).split("\n").filter(line => line.trim().length > 0);
+    const escapeXml = (value) => String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+    const cmlValue = "<co-content>" + lines.map(line => `<text>${escapeXml(line)}</text>`).join("") + "</co-content>";
     
     const postBody = {
       content: {
@@ -343,8 +378,7 @@ async function solveDiscussion(courseId, itemId, settings, tabId) {
     if (submitRes.ok) {
        updateProgress("Discussion prompt answered successfully!");
     } else {
-       const errText = await submitRes.text();
-       throw new Error(`Failed to submit discussion answer: ${submitRes.status} ${errText}`);
+       throw new Error(`Failed to submit discussion answer (${submitRes.status}).`);
     }
     
   } catch (err) {

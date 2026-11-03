@@ -10,7 +10,7 @@ function parseJsonText(text) {
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    console.warn("[Skipera LLM] JSON parse failed, trying regex extraction:", text);
+    console.warn("[Skipera LLM] JSON parse failed, trying a limited response recovery.");
     const match = text.match(/\{[\s\S]*"responses"[\s\S]*\}/);
     if (match) {
       try {
@@ -136,9 +136,10 @@ const PROVIDER_CONFIGS = {
     parseResponse: (json) => parseJsonText(json?.content?.[0]?.text || "")
   },
   gemini: {
-    endpoint: (key) => "", 
-    formatHeaders: () => ({
-      "Content-Type": "application/json"
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/",
+    formatHeaders: (key) => ({
+      "Content-Type": "application/json",
+      "x-goog-api-key": key.trim()
     }),
     formatBody: (model, systemPrompt, userPrompt) => ({
       systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -156,8 +157,6 @@ const PROVIDER_CONFIGS = {
   }
 };
 
-let currentKeyIndex = 0;
-
 // ponytail: nemotron-3-ultra-550b with ~15k context + 8k max_tokens routinely
 // needs 30-60s. Bump if you switch to an even larger default model.
 const LLM_TIMEOUT_MS = 90000;
@@ -169,6 +168,7 @@ export async function callLLMProvider(providerName, apiKeys, modelName, systemPr
   if (!apiKeys || apiKeys.length === 0) {
     throw new Error("No API key provided. Please enter your API key in the extension popup settings.");
   }
+  let currentKeyIndex = 0;
 
   const MODEL_ALIASES = {
     "deepseek-ai/deepseek-v4-flash-0731": "nvidia/nemotron-3.5-lightning-30b-a3b",
@@ -191,7 +191,7 @@ export async function callLLMProvider(providerName, apiKeys, modelName, systemPr
     
     let endpoint = provider.endpoint;
     if (providerName === "gemini") {
-       endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${key.trim()}`;
+       endpoint = `${provider.endpoint}${encodeURIComponent(effectiveModel)}:generateContent`;
     }
 
     const headers = provider.formatHeaders(key);
@@ -206,8 +206,7 @@ export async function callLLMProvider(providerName, apiKeys, modelName, systemPr
       });
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[Skipera LLM] HTTP ${response.status} from ${provider.endpoint}:`, errText);
+        console.error(`[Skipera LLM] HTTP ${response.status} from ${providerName}.`);
 
         // Backend overloaded -> switching models won't help. Wait and retry the
         // same model up to 3x (3s, 9s, 20s) before falling through.
@@ -223,7 +222,7 @@ export async function callLLMProvider(providerName, apiKeys, modelName, systemPr
             console.warn(`Key ${currentKeyIndex} failed with ${response.status}. Trying next key...`);
             currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
             if (attempt === apiKeys.length - 1) {
-               throw new Error(`API Error ${response.status}: ${errText}`);
+               throw new Error(`API Error ${response.status} from ${providerName}. Check the selected provider's dashboard for details.`);
             }
             continue; // try next key
         }
@@ -267,7 +266,7 @@ export async function callLLMProvider(providerName, apiKeys, modelName, systemPr
           }
         }
 
-        throw new Error(`API Error ${response.status}: ${errText}`);
+        throw new Error(`API Error ${response.status} from ${providerName}. Check the selected provider's dashboard for details.`);
       }
 
       const json = await response.json();

@@ -14,7 +14,7 @@
 
 ---
 
-A clean, open-source browser extension that automates Coursera progress by directly interacting with native APIs. Mark videos and readings complete instantly without leaving content playing in background tabs.
+A compact, open-source browser extension for managing Coursera course progress. It uses Coursera APIs to update eligible lesson progress without leaving videos running in background tabs.
 
 <p align="center">
   <img src="./Preview1.png" alt="WTF Coursera Preview" width="80%" />
@@ -28,9 +28,18 @@ A clean, open-source browser extension that automates Coursera progress by direc
 - **Complete Readings Only:** Sweeps the course syllabus and bulk-completes all reading materials in the background.
 - **Complete Entire Course:** Batches and completes all remaining video lectures and readings in the active course.
 - **AI Quiz Solver:** Solves current quizzes, exams, and assignments, with retry attempts toward a configurable target grade.
-- **Provider/API Integration:** Supports NVIDIA NIM, OpenAI, Anthropic, and Google Gemini. API keys can be stacked with commas for fallback; keys and solver preferences are stored in local extension storage.
+- **Provider/API Integration:** Supports NVIDIA NIM, OpenAI, Anthropic, and Google Gemini. API keys and solver preferences are stored in this browser's extension storage.
 - **Course Solver Modes:** Run the full course, graded items only, or fast-forward videos/readings only. The AI course solver can also process supported quiz and discussion items.
-- **Clean and Private:** 100% client-side logic. No tracking, telemetry, or remote servers.
+- **No telemetry:** The extension does not send analytics. When AI features are used, course questions and related context are sent to the selected AI provider.
+
+## Privacy and security
+
+- Your AI key is stored in Chrome extension storage on this browser. It is not encrypted as a password vault would be; remove it from the popup when you no longer need it.
+- Recent course progress and error logs for up to 20 courses are also stored in extension storage on this browser.
+- AI requests send assessment prompts and relevant course context to the provider you selected. Review that provider's data handling terms before use.
+- The extension requests access to Coursera and the supported AI provider endpoints. It does not need access to unrelated websites.
+- AI-generated discussion replies are not posted automatically by default. Enabling **Post AI discussion replies automatically** allows generated text to be submitted under your Coursera account.
+- Course progress actions affect your Coursera account. Use the single-lesson action first if you are unsure what a bulk action will change.
 
 <p align="center">
   <img src="./Preview2.png" alt="Quiz Solver Preview" width="80%" />

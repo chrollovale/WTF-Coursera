@@ -8,9 +8,13 @@ const BASE_URL = "https://www.coursera.org/api/";
  */
 export async function getCsrfToken() {
   return new Promise((resolve) => {
-    chrome.cookies.getAll({ domain: "coursera.org" }, (cookies) => {
-      const csrf = cookies.find(c => c.name.toLowerCase() === "csrf3-token");
-      resolve(csrf ? csrf.value : null);
+    chrome.cookies.get({ url: "https://www.coursera.org/", name: "csrf3-token" }, (cookie) => {
+      if (chrome.runtime.lastError) {
+        console.warn("Unable to read the Coursera CSRF cookie:", chrome.runtime.lastError.message);
+        resolve(null);
+        return;
+      }
+      resolve(cookie?.value || null);
     });
   });
 }
@@ -20,21 +24,26 @@ export async function getCsrfToken() {
  */
 export async function fetchCoursera(endpoint, options = {}) {
   const token = await getCsrfToken();
-  const headers = {
-    ...options.headers,
-    "X-CSRF3-Token": token,
-  };
+  const headers = { ...options.headers };
+  if (token) headers["X-CSRF3-Token"] = token;
   
   // Only add Content-Type if we're sending a body and it's not already set
   if (options.body && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
 
-  const url = (endpoint.startsWith("http") || endpoint.startsWith("/")) 
-    ? endpoint 
-    : `${BASE_URL}${endpoint}`;
+  let url;
+  try {
+    url = new URL(endpoint, BASE_URL);
+  } catch {
+    throw new Error("Coursera API URL is invalid.");
+  }
+  if (url.protocol !== "https:" || url.origin !== "https://www.coursera.org") {
+    throw new Error("Coursera API requests must stay on the secure Coursera origin.");
+  }
 
-  const res = await fetch(url, {
+  const res = await fetch(url.href, {
+    signal: options.signal || AbortSignal.timeout(20000),
     credentials: "include",
     ...options,
     headers
@@ -64,19 +73,22 @@ export async function getCourseMaterials(courseSlug) {
 }
 
 export async function getCompletedItems(userId, courseId) {
-  const res = await fetchCoursera(`onDemandCoursesProgress.v1/${userId}~${courseId}?fields=gradedAssignmentGroupProgress`);
-  if (!res.ok) return new Set();
+  const res = await fetchCoursera(`onDemandCoursesProgress.v1/${userId}~${courseId}`);
+  if (!res.ok) throw new Error(`Could not verify course progress (${res.status}).`);
   
   const data = await res.json();
+  if (!Array.isArray(data?.elements) || data.elements.length === 0) {
+    throw new Error("Coursera returned no course progress data; stopping to avoid repeating completed actions.");
+  }
+  const items = data.elements[0]?.items;
+  if (!items || typeof items !== "object" || Array.isArray(items)) {
+    throw new Error("Coursera returned an unexpected course progress format.");
+  }
   const completed = new Set();
-  
-  const elements = data.elements || [];
-  if (elements.length > 0) {
-    const items = elements[0].items || {};
-    for (const [itemId, progress] of Object.entries(items)) {
-      if (progress.progressState === "Completed") {
-        completed.add(itemId);
-      }
+
+  for (const [itemId, progress] of Object.entries(items)) {
+    if (progress?.progressState === "Completed") {
+      completed.add(itemId);
     }
   }
   return completed;
@@ -87,13 +99,21 @@ export async function getCompletedItems(userId, courseId) {
 export async function getVideoMetadata(courseId, itemId) {
   const params = new URLSearchParams({
     includes: "video",
-    fields: "disableSkippingForward,startMs,endMs"
+    fields: "disableSkippingForward,startMs,endMs,onDemandVideos.v1(id,duration)"
   });
   const res = await fetchCoursera(`onDemandLectureVideos.v1/${courseId}~${itemId}?${params.toString()}`);
+  if (!res.ok) throw new Error(`Could not load video metadata (${res.status}).`);
   const data = await res.json();
+  const video = data?.linked?.["onDemandVideos.v1"]?.[0];
+  if (!data?.elements?.[0] || !video?.id) throw new Error("Coursera returned incomplete video metadata.");
+  const startMs = Number(data.elements[0].startMs) || 0;
+  const endMs = Number(data.elements[0].endMs) || 0;
+  const videoDurationMs = Number(video.duration) || 0;
+  const durationMs = endMs > startMs ? endMs - startMs : videoDurationMs;
   return {
-    canSkip: !data.elements[0].disableSkippingForward,
-    trackingId: data.linked["onDemandVideos.v1"][0].id
+    canSkip: data.elements[0].disableSkippingForward !== true,
+    trackingId: video.id,
+    durationMs
   };
 }
 
@@ -101,32 +121,38 @@ export async function watchVideo(userId, courseSlug, courseId, item, metadata) {
   const startUrl = `opencourse.v1/user/${userId}/course/${courseSlug}/item/${item.id}/lecture/videoEvents/play?autoEnroll=false`;
   const endUrl = `opencourse.v1/user/${userId}/course/${courseSlug}/item/${item.id}/lecture/videoEvents/ended?autoEnroll=false`;
   
+  if (!metadata?.trackingId) throw new Error("Video metadata is required before reporting completion.");
+
   if (!metadata.canSkip) {
-    await fetchCoursera(startUrl, { method: "POST", body: '{"contentRequestBody":{}}' });
+    if (!Number.isFinite(metadata.durationMs) || metadata.durationMs <= 0) {
+      throw new Error("Coursera did not provide a valid video duration; progress was not reported.");
+    }
+    const playRes = await fetchCoursera(startUrl, { method: "POST", body: '{"contentRequestBody":{}}' });
+    if (!playRes.ok) throw new Error(`Coursera rejected the video start event (${playRes.status}).`);
     
     // Update progress
-    await fetchCoursera(`onDemandVideoProgresses.v1/${userId}~${courseId}~${metadata.trackingId}`, {
+    const progressRes = await fetchCoursera(`onDemandVideoProgresses.v1/${userId}~${courseId}~${metadata.trackingId}`, {
       method: "PUT",
       body: JSON.stringify({
         videoProgressId: `${userId}~${courseId}~${metadata.trackingId}`,
-        viewedUpTo: item.timeCommitment + 2000
+        viewedUpTo: metadata.durationMs + 2000
       })
     });
+    if (!progressRes.ok) throw new Error(`Coursera rejected the video progress update (${progressRes.status}).`);
   }
   
   // End item (can skip calls this directly)
-  await fetchCoursera(endUrl, { method: "POST", body: '{"contentRequestBody":{}}' });
-  return true;
+  const endRes = await fetchCoursera(endUrl, { method: "POST", body: '{"contentRequestBody":{}}' });
+  return endRes.ok;
 }
 
 export async function skipLecture(userId, courseSlug, courseId, item) {
   try {
     const meta = await getVideoMetadata(courseId, item.id);
     return await watchVideo(userId, courseSlug, courseId, item, meta);
-  } catch {
-    const endUrl = `opencourse.v1/user/${userId}/course/${courseSlug}/item/${item.id}/lecture/videoEvents/ended?autoEnroll=false`;
-    const res = await fetchCoursera(endUrl, { method: "POST", body: '{"contentRequestBody":{}}' });
-    return res.ok;
+  } catch (error) {
+    console.warn("Could not confirm lecture completion:", error.message);
+    return false;
   }
 }
 
@@ -139,8 +165,7 @@ export async function readSupplement(userId, courseId, itemId) {
       userId: parseInt(userId)
     })
   });
-  const text = await res.text();
-  return text.includes("Completed");
+  return res.ok;
 }
 
 export async function completeWidget(userId, courseId, itemId) {
@@ -296,8 +321,9 @@ async function fetchTranscriptText(courseId, itemId) {
     const map = video.subtitlesTxt || video.subtitles || {};
     let url = map.en || map["en-US"] || Object.values(map)[0];
     if (!url) return "";
-    if (url.startsWith("/")) url = "https://www.coursera.org" + url;
-    const txtRes = await fetch(url);
+    const parsedUrl = new URL(url, "https://www.coursera.org");
+    if (parsedUrl.protocol !== "https:" || parsedUrl.origin !== "https://www.coursera.org") return "";
+    const txtRes = await fetch(parsedUrl.href);
     if (!txtRes.ok) return "";
     return vttToText(await txtRes.text());
   } catch (e) {
