@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="icon.png" width="100" height="100" alt="WTF Coursera Icon" />
+  <img src="icon.png" width="100" height="100" alt="WTF Coursera icon" />
   <h1>WTF Coursera</h1>
-  <p><b>Automate Coursera course progress, fast-forward lessons, and solve quizzes with AI</b></p>
+  <p><b>A compact Coursera course companion for progress actions and AI-assisted assessments.</b></p>
 
   [![Release](https://img.shields.io/github/v/release/chrollovale/WTF-Coursera?style=flat-square&color=38bdf8)](https://github.com/chrollovale/WTF-Coursera/releases/latest)
   [![Manifest V3](https://img.shields.io/badge/Manifest-V3-34A853?style=flat-square)](https://developer.chrome.com/docs/extensions/mv3/intro/)
@@ -9,72 +9,79 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](./LICENSE)
 
   <br />
-  <a href="https://github.com/chrollovale/WTF-Coursera/releases/latest"><b>📥 Download WTF-Coursera Extension (.zip)</b></a>
+  <a href="https://github.com/chrollovale/WTF-Coursera/releases/latest"><b>Download the latest extension</b></a>
 </div>
 
 ---
 
-A compact, open-source browser extension for managing Coursera course progress. It uses Coursera APIs to update eligible lesson progress without leaving videos running in background tabs.
+WTF Coursera is a local browser extension for Coursera. Its dark, compact panel provides lesson progress actions and an optional AI workspace. The extension uses your active Coursera session; AI features send assessment prompts and related course context to the provider you select.
 
 <p align="center">
-  <img src="./Preview1.png" alt="WTF Coursera Preview" width="80%" />
+  <img src="./Preview1.png" alt="WTF Coursera extension panel" width="80%" />
 </p>
-
----
 
 ## Features
 
-- **Complete Current Lesson:** Instantly marks the active video or reading as completed.
-- **Complete Readings Only:** Sweeps the course syllabus and bulk-completes all reading materials in the background.
-- **Complete Entire Course:** Batches and completes all remaining video lectures and readings in the active course.
-- **AI Quiz Solver:** Solves current quizzes, exams, and assignments, with retry attempts toward a configurable target grade.
-- **Provider/API Integration:** Supports NVIDIA NIM, OpenAI, Anthropic, and Google Gemini. API keys and solver preferences are stored in this browser's extension storage.
-- **Course Solver Modes:** Run the full course, graded items only, or fast-forward videos/readings only. The AI course solver can also process supported quiz and discussion items.
-- **No telemetry:** The extension does not send analytics. When AI features are used, course questions and related context are sent to the selected AI provider.
+- **Current lesson:** Request completion for an eligible video or reading.
+- **Course progress:** Process readings or eligible course content in batches, with results based on Coursera's responses.
+- **AI-assisted assessments:** Work on supported quizzes, exams, programming assignments, and other supported assessment types. The solver validates responses and avoids submitting an incomplete draft.
+- **Provider choice:** Use NVIDIA NIM, OpenAI, Anthropic, or Google Gemini with your own API key.
+- **Course modes:** Run the AI course workflow, focus on graded items, or process videos and readings.
+- **Optional discussion replies:** Generated replies are not posted automatically unless you enable that option.
+- **No analytics:** The extension does not send telemetry.
+
+## What's new in 1.1.5
+
+- Refreshed the whole popup with a sleek dark design and a book-and-check extension mark.
+- Added support for multiple-choice fill-in-the-blanks assessments.
+- Added stricter question and option matching; incomplete or invalid answers stop before submission.
+- Removed placeholder URLs from file-upload handling. File-upload assessments now stop with a message so you can provide the file yourself.
+- Improved progress confirmation and failure handling for Coursera API actions.
+- Restricted Coursera requests to the secure Coursera origin, bounded locally stored course history, and removed page-script scraping for user IDs.
 
 ## Privacy and security
 
-- Your AI key is stored in Chrome extension storage on this browser. It is not encrypted as a password vault would be; remove it from the popup when you no longer need it.
-- Recent course progress and error logs for up to 20 courses are also stored in extension storage on this browser.
-- AI requests send assessment prompts and relevant course context to the provider you selected. Review that provider's data handling terms before use.
-- The extension requests access to Coursera and the supported AI provider endpoints. It does not need access to unrelated websites.
-- AI-generated discussion replies are not posted automatically by default. Enabling **Post AI discussion replies automatically** allows generated text to be submitted under your Coursera account.
-- Course progress actions affect your Coursera account. Use the single-lesson action first if you are unsure what a bulk action will change.
-
-<p align="center">
-  <img src="./Preview2.png" alt="Quiz Solver Preview" width="80%" />
-</p>
-
----
+- Your AI key and preferences are stored in this browser's extension storage. The key is not encrypted like a password-vault secret; remove it from the popup when you no longer need it.
+- Recent course progress and error logs for up to 20 courses are stored locally in extension storage.
+- When AI runs, assessment prompts and relevant course context are sent to the selected provider. Review that provider's data-handling terms before use.
+- The extension requests access to Coursera and the supported AI provider endpoints. It does not request access to unrelated websites.
+- Progress actions affect your Coursera account. AI-generated answers may be submitted to Coursera when you run the solver; automatic discussion posting requires opt-in.
+- File-upload assessments and peer-review workflows are not completed by the AI solver.
 
 ## Installation
 
-1. Download **[WTF-Coursera.zip](https://github.com/chrollovale/WTF-Coursera/releases/latest)**.
-2. Open Chrome (or Edge / Brave) and navigate to `chrome://extensions/`.
-3. Enable **Developer mode** using the toggle in the top-right corner.
-4. Click **Load unpacked** and select the folder containing `manifest.json`.
-5. Pin **WTF Coursera** to your extension toolbar.
-
----
+1. Download the latest **WTF-Coursera** ZIP from [GitHub Releases](https://github.com/chrollovale/WTF-Coursera/releases/latest).
+2. Extract the ZIP to a folder on your computer.
+3. Open Chrome, Edge, or Brave and visit `chrome://extensions/` (use `edge://extensions/` in Edge).
+4. Turn on **Developer mode**.
+5. Click **Load unpacked** and select the extracted folder containing `manifest.json`.
+6. Pin **WTF Coursera** to the browser toolbar.
 
 ## Usage
 
-1. Log into Coursera and ensure you are **enrolled** in the target course.
-2. Open any lesson page (e.g., `/learn/<course-slug>/lecture/...`).
-3. Click the extension icon and select your desired action.
-4. For quiz solving, choose an AI provider and enter its API key, then use **Solve Current Quiz** or **Run AI Full Course**.
+1. Sign in to Coursera and open a course page under `/learn/<course-slug>/`.
+2. Open the extension panel and choose a progress action, or expand the AI workspace.
+3. For AI features, select a provider and enter its API key.
+4. Review the task and settings before starting. Use the single-lesson or current-assessment action first if you want to see how it behaves.
 
 <p align="center">
-  <img src="./Preview3.png" alt="AI Solver Settings" width="80%" />
+  <img src="./Preview2.png" alt="Assessment solver preview" width="80%" />
+</p>
+<p align="center">
+  <img src="./Preview3.png" alt="AI provider settings preview" width="80%" />
 </p>
 
+## Troubleshooting
+
+- **The extension panel says no Coursera page was detected:** Open a Coursera course page on `www.coursera.org` and reopen the panel.
+- **A progress action reports an error:** Confirm you are enrolled and signed in, then refresh the course page and retry.
+- **An assessment was left unsubmitted:** Check whether it contains an unsupported question type or whether the selected AI provider returned an invalid or incomplete response.
+- **The AI provider rejects a request:** Check the provider, API key, model name, and provider account limits.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+
 ---
 
-## Disclaimer
-
-Built for educational research and personal time management. Use responsibly and at your own risk.
-
----
-
-### ⭐ Support the Project
-If this tool saved you hours or helped complete your coursework, please consider giving it a **Star** on GitHub!
+Built for educational research and personal time management. Use responsibly and follow your course and platform requirements.
